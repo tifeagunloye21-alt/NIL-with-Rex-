@@ -50,8 +50,23 @@ function RingProgress({ pct, size = 72, strokeWidth = 6, color = '#0052FF' }) {
 
 export default function EducationPage() {
     const [expanded, setExpanded] = useState(null);
-    const completed = MODULES.filter(m => m.status === 'Completed').length;
-    const totalPct = Math.round(MODULES.reduce((s, m) => s + m.progress, 0) / (MODULES.length * 100) * 100);
+    const [playing, setPlaying] = useState(null); // index of module being played
+    const [modules, setModules] = useState(MODULES);
+    const completed = modules.filter(m => m.status === 'Completed').length;
+    const totalPct = Math.round(modules.reduce((s, m) => s + m.progress, 0) / (modules.length * 100) * 100);
+
+    const startModule = (e, i) => {
+        e.stopPropagation();
+        setPlaying(playing === i ? null : i);
+    };
+
+    const advanceProgress = (i) => {
+        setModules(prev => prev.map((m, idx) => {
+            if (idx !== i) return m;
+            const newPct = Math.min(100, m.progress + 25);
+            return { ...m, progress: newPct, status: newPct === 100 ? 'Completed' : 'In Progress' };
+        }));
+    };
 
     return (
         <div style={{ padding: '2.25rem 2.5rem', background: '#f8fafc', minHeight: '100vh' }}>
@@ -99,7 +114,7 @@ export default function EducationPage() {
 
             {/* Module Cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {MODULES.map((m, i) => (
+                {modules.map((m, i) => (
                     <div key={i}
                         style={{ background: 'white', borderRadius: '16px', padding: '1.5rem', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', cursor: 'pointer', transition: 'box-shadow 0.15s, transform 0.15s' }}
                         onClick={() => setExpanded(expanded === i ? null : i)}
@@ -124,11 +139,11 @@ export default function EducationPage() {
                             </div>
                             {/* Ring + CTA */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-                                <RingProgress pct={m.progress} size={52} strokeWidth={5} color={m.color} />
+                                <RingProgress pct={modules[i].progress} size={52} strokeWidth={5} color={modules[i].color} />
                                 <button
-                                    onClick={e => { e.stopPropagation(); }}
-                                    style={{ background: m.progress === 100 ? '#ecfdf5' : m.color, color: m.progress === 100 ? '#059669' : 'white', border: 'none', borderRadius: '10px', padding: '0.55rem 1rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
-                                    {m.progress === 100 ? <><CheckCircle size={13} /> Review</> : m.progress === 0 ? <><PlayCircle size={13} /> Start</> : <><PlayCircle size={13} /> Continue</>}
+                                    onClick={e => startModule(e, i)}
+                                    style={{ background: modules[i].progress === 100 ? '#ecfdf5' : modules[i].color, color: modules[i].progress === 100 ? '#059669' : 'white', border: 'none', borderRadius: '10px', padding: '0.55rem 1rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+                                    {modules[i].progress === 100 ? <><CheckCircle size={13} /> Review</> : modules[i].progress === 0 ? <><PlayCircle size={13} /> Start</> : <><PlayCircle size={13} /> Continue</>}
                                 </button>
                             </div>
                         </div>
@@ -136,6 +151,32 @@ export default function EducationPage() {
                         {expanded === i && (
                             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f3f4f6', fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.6 }}>
                                 {m.desc}
+                            </div>
+                        )}
+                        {/* Inline module player */}
+                        {playing === i && (
+                            <div style={{ marginTop: '1rem', paddingTop: '1.25rem', borderTop: '2px solid #f3f4f6' }}>
+                                <div style={{ background: m.bg, borderRadius: '12px', padding: '1.5rem', marginBottom: '1rem' }}>
+                                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827', marginBottom: '0.5rem' }}>📖 {m.title}</div>
+                                    <div style={{ fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.7 }}>{m.desc}</div>
+                                    <div style={{ marginTop: '1rem', height: '6px', background: 'rgba(0,0,0,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${modules[i].progress}%`, height: '100%', background: m.color, borderRadius: '3px', transition: 'width 0.4s' }} />
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.4rem' }}>{modules[i].progress}% complete</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    {modules[i].progress < 100 && (
+                                        <button
+                                            onClick={() => advanceProgress(i)}
+                                            style={{ flex: 1, background: m.color, color: 'white', border: 'none', borderRadius: '10px', padding: '0.7rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
+                                            {modules[i].progress === 0 ? '▶ Start Lesson' : '▶ Continue (+25%)'}
+                                        </button>
+                                    )}
+                                    {modules[i].progress === 100 && (
+                                        <div style={{ flex: 1, background: '#ecfdf5', color: '#059669', borderRadius: '10px', padding: '0.7rem', fontWeight: 700, fontSize: '0.875rem', textAlign: 'center' }}>✓ Module Complete!</div>
+                                    )}
+                                    <button onClick={() => setPlaying(null)} style={{ background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: '10px', padding: '0.7rem 1.2rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>Close</button>
+                                </div>
                             </div>
                         )}
                     </div>

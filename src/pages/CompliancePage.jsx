@@ -3,7 +3,7 @@ import { ShieldCheck, AlertCircle, FileText, CheckCircle, ExternalLink } from 'l
 import { useAppContext } from '../context/AppContext';
 
 export default function CompliancePage() {
-    const { deals } = useAppContext();
+    const { myDeals: deals } = useAppContext();
     const [resolvedIds, setResolvedIds] = useState([]);
 
     const pending = deals.filter(d => d.disclosureRequired && !d.reportedToSchool && !resolvedIds.includes(d.id));

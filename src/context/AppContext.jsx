@@ -83,6 +83,32 @@ export const mockDealReports = [
   { id: 'rpt5', dealId: 'd4', submittedByRole: 'agent', athleteId: 'mock-u1', agentId: 'a2', brandName: 'Sports Apparel Co', dealTitle: 'Brand Ambassador', submittedCashValue: 3500, submittedNonCashValue: 0, reportStatus: 'standalone', createdAt: '2026-04-05T12:00:00Z' },
 ];
 
+// ─── LOCAL STORE (Supabase-ready persistence layer) ─────────────────────────
+// Table structure mirrors Supabase schema for zero-friction migration:
+//   profiles | user_settings | deals | deliverables | deal_documents | activity_log
+//
+// Migration path: replace localStorage.getItem/setItem calls below with
+// supabase.from('table').select/insert/update, adding userId filters.
+
+const LS = {
+  // Load user-scoped data.
+  load: (uid, table, fallback = []) => {
+    try {
+      const raw = localStorage.getItem(`fd_${table}_${uid}`);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch { return fallback; }
+  },
+  save: (uid, table, data) => {
+    try { localStorage.setItem(`fd_${table}_${uid}`, JSON.stringify(data)); } catch {}
+  },
+  // Clear all user-scoped tables on logout / account delete
+  clear: (uid) => {
+    ['deals', 'deliverables', 'deal_reports', 'activity_log'].forEach(t =>
+      localStorage.removeItem(`fd_${t}_${uid}`)  // fixed: was `table` instead of `t`
+    );
+  },
+};
+
 // ─── CONTEXT ──────────────────────────────────────────────────────────────────
 
 export const AppContext = createContext(null);
@@ -96,6 +122,27 @@ export const AppProvider = ({ children }) => {
   const [dealReports, setDealReports] = useState(mockDealReports);
   const [activityLog, setActivityLog] = useState(mockActivityLog);
   const [conversations, setConversations] = useState([]);
+
+  // ─── PERSIST to localStorage whenever state changes (per logged-in user) ───
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.id === 'mock-u1') return;
+    LS.save(currentUser.id, 'deals', deals.filter(d => d.athleteId === currentUser.id));
+  }, [deals, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.id === 'mock-u1') return;
+    LS.save(currentUser.id, 'deliverables', deliverables.filter(d => d.athleteId === currentUser.id));
+  }, [deliverables, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.id === 'mock-u1') return;
+    LS.save(currentUser.id, 'activity_log', activityLog.filter(a => a.userId === currentUser.id));
+  }, [activityLog, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id || currentUser.id === 'mock-u1') return;
+    LS.save(currentUser.id, 'deal_reports', dealReports.filter(r => r.athleteId === currentUser.id));
+  }, [dealReports, currentUser?.id]);
 
   // ─── AUTH ──────────────────────────────────────────────────────────────────
 
@@ -121,8 +168,28 @@ export const AppProvider = ({ children }) => {
 
   const login = useCallback(async ({ email, password }) => {
     if (!isSupabaseEnabled) {
-      setCurrentUser({ id: 'mock-u1', email, name: 'Demo Athlete', role: 'athlete' });
-      return 'athlete';
+      // DEMO account — always maps to mock-u1 to show seeded showcase data
+      if (email === 'demo@frontdoor.app') {
+        setCurrentUser({ id: 'mock-u1', email, name: 'Demo Athlete', role: 'athlete' });
+        return 'athlete';
+      }
+      // Real offline users — look up stored profile by email
+      const stored = JSON.parse(localStorage.getItem('fd_offline_users') || '{}');
+      const profile = stored[email];
+      if (!profile) throw new Error('No account found for this email. Please sign up first.');
+      // Real offline users — load ONLY their own data (no mock data leakage)
+      const uid = profile.id;
+      const savedDeals = LS.load(uid, 'deals');
+      const savedDeliverables = LS.load(uid, 'deliverables');
+      const savedActivity = LS.load(uid, 'activity_log', []);
+      const savedReports = LS.load(uid, 'deal_reports');
+      // Only inject mock data for demo account — real users get a clean slate
+      setDeals([...mockDeals, ...savedDeals]);
+      setDeliverables([...mockDeliverables, ...savedDeliverables]);
+      setActivityLog(savedActivity);
+      setDealReports([...mockDealReports, ...savedReports]);
+      setCurrentUser({ id: uid, email, name: profile.name, role: profile.role });
+      return profile.role;
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -132,13 +199,28 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   const signup = useCallback(async ({ name, email, password, role }) => {
-    if (!isSupabaseEnabled) { setCurrentUser({ id: 'mock-u1', email, name, role }); return role; }
+    if (!isSupabaseEnabled) {
+      // Generate a stable unique ID per email so new users always start empty
+      const stored = JSON.parse(localStorage.getItem('fd_offline_users') || '{}');
+      if (stored[email]) throw new Error('An account with this email already exists. Please log in.');
+      const newId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      stored[email] = { id: newId, name, role };
+      localStorage.setItem('fd_offline_users', JSON.stringify(stored));
+      // Fresh state — new user starts with empty account
+      setDeals(mockDeals); // keep demo deals in memory but filtered out by athleteId
+      setDeliverables(mockDeliverables);
+      setActivityLog([]);
+      setDealReports(mockDealReports);
+      setCurrentUser({ id: newId, email, name, role });
+      return role;
+    }
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
     await supabase.from('profiles').insert({ id: data.user.id, name, role });
     setCurrentUser({ id: data.user.id, email, name, role });
     return role;
   }, []);
+
 
   const logout = useCallback(async () => {
     if (isSupabaseEnabled) await supabase.auth.signOut();
@@ -301,19 +383,116 @@ export const AppProvider = ({ children }) => {
     setDeliverables(prev =>
       prev.map(d => d.id === deliverableId ? { ...d, status: 'Completed', completionDate: new Date().toISOString() } : d)
     );
-    setActivityLog(prev => {
-      const del = prev.find(d => d.id === deliverableId);
-      return [
-        { id: `act-${Date.now()}`, eventType: 'deliverable_done', relatedDealId: del?.dealId || '', userId: '', role: 'athlete', message: `Deliverable marked complete`, timestamp: new Date().toISOString() },
-        ...prev,
-      ];
+    setActivityLog(prev => [
+      { id: `act-${Date.now()}`, eventType: 'deliverable_done', relatedDealId: '', userId: currentUser?.id || '', role: 'athlete', message: `Deliverable marked complete`, timestamp: new Date().toISOString() },
+      ...prev,
+    ]);
+  }, [currentUser]);
+
+  const updateDeliverable = useCallback((deliverableId, updates) => {
+    setDeliverables(prev => prev.map(d => d.id === deliverableId ? { ...d, ...updates } : d));
+  }, []);
+
+  const addDeliverable = useCallback((dealId, deliverableData) => {
+    const deal = deals.find(d => d.id === dealId);
+    const newDel = {
+      id: `del-${Date.now()}`,
+      athleteId: currentUser?.id || '',
+      dealId,
+      brand: deal?.brand || '',
+      type: deliverableData.type || 'Social Post',
+      name: deliverableData.name || 'New Deliverable',
+      date: deliverableData.date || 'TBD',
+      status: 'Upcoming',
+      notes: deliverableData.notes || '',
+    };
+    setDeliverables(prev => [...prev, newDel]);
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, deliverableIds: [...(d.deliverableIds || []), newDel.id] } : d));
+    return newDel;
+  }, [currentUser, deals]);
+
+  const deleteDeliverable = useCallback((deliverableId) => {
+    setDeliverables(prev => prev.filter(d => d.id !== deliverableId));
+    setDeals(prev => prev.map(d => ({ ...d, deliverableIds: (d.deliverableIds || []).filter(id => id !== deliverableId) })));
+  }, []);
+
+  // ─── DEAL ACTIONS ───────────────────────────────────────────────────────────
+
+  const updateDealStatus = useCallback((dealId, status) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status } : d));
+    setActivityLog(prev => [
+      { id: `act-${Date.now()}`, eventType: 'status_updated', relatedDealId: dealId, userId: currentUser?.id || '', role: 'athlete', message: `Deal status updated to ${status}`, timestamp: new Date().toISOString() },
+      ...prev,
+    ]);
+  }, [currentUser]);
+
+  const archiveDeal = useCallback((dealId) => {
+    setDeals(prev => prev.map(d => d.id === dealId ? { ...d, status: 'Archived' } : d));
+    setActivityLog(prev => [
+      { id: `act-${Date.now()}`, eventType: 'deal_archived', relatedDealId: dealId, userId: currentUser?.id || '', role: 'athlete', message: `Deal archived`, timestamp: new Date().toISOString() },
+      ...prev,
+    ]);
+  }, [currentUser]);
+
+  // ─── DOCUMENTS (localStorage, base64) ──────────────────────────────────────
+
+  const attachDocument = useCallback((dealId, file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const doc = {
+          id: `doc-${Date.now()}`,
+          dealId,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: reader.result,
+          uploadedAt: new Date().toISOString(),
+        };
+        setDeals(prev => prev.map(d => d.id === dealId
+          ? { ...d, documents: [...(d.documents || []), doc] }
+          : d
+        ));
+        setActivityLog(prev => [
+          { id: `act-${Date.now()}`, eventType: 'document_uploaded', relatedDealId: dealId, userId: currentUser?.id || '', role: 'athlete', message: `Document uploaded: ${file.name}`, timestamp: new Date().toISOString() },
+          ...prev,
+        ]);
+        resolve(doc);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
+  }, [currentUser]);
+
+  const deleteDocument = useCallback((dealId, docId) => {
+    setDeals(prev => prev.map(d => d.id === dealId
+      ? { ...d, documents: (d.documents || []).filter(doc => doc.id !== docId) }
+      : d
+    ));
   }, []);
 
   // Legacy addDeal — kept for backwards compatibility
   const addDeal = useCallback((dealData) => {
     submitDealReport({ ...dealData, submittedByRole: 'athlete' });
   }, [submitDealReport]);
+
+  // ─── ACTIVITY LOG ───────────────────────────────────────────────────────────
+  // Centralized activity logger — call from any page action.
+  // Mirrors the activity_log Supabase table: eventType, message, relatedDealId, userId, role, timestamp.
+  const logActivity = useCallback((eventType, message, relatedDealId = '') => {
+    setActivityLog(prev => [
+      {
+        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        eventType,
+        relatedDealId,
+        userId: currentUser?.id || '',
+        role: currentUser?.role || 'athlete',
+        message,
+        timestamp: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+  }, [currentUser]);
 
   // ─── MESSAGING ─────────────────────────────────────────────────────────────
 
@@ -333,11 +512,19 @@ export const AppProvider = ({ children }) => {
 
   // ─── PER-USER FILTERED DATA ───────────────────────────────────────────────
   // Each athlete only sees records tagged with their own id.
-  // Falls back to all mock data for the seeded 'mock-u1' account.
-  const uid = currentUser?.id || 'mock-u1';
-  const myDeals = deals.filter(d => d.athleteId === uid || d.athleteId === 'mock-u1');
-  const myDeliverables = deliverables.filter(d => d.athleteId === uid || d.athleteId === 'mock-u1');
-  const myActivity = activityLog.filter(a => a.userId === uid || a.userId === 'mock-u1');
+  // The seeded mock data is ONLY shown to the demo account (mock-u1).
+  // Real authenticated users start with an empty account.
+  const uid = currentUser?.id || null;
+  const isMockUser = !uid || uid === 'mock-u1';
+  const myDeals = isMockUser
+    ? deals.filter(d => d.athleteId === 'mock-u1')
+    : deals.filter(d => d.athleteId === uid);
+  const myDeliverables = isMockUser
+    ? deliverables.filter(d => d.athleteId === 'mock-u1')
+    : deliverables.filter(d => d.athleteId === uid);
+  const myActivity = isMockUser
+    ? activityLog.filter(a => a.userId === 'mock-u1')
+    : activityLog.filter(a => a.userId === uid);
 
   return (
     <AppContext.Provider value={{
@@ -349,7 +536,10 @@ export const AppProvider = ({ children }) => {
       // per-user filtered arrays (use these in athlete pages)
       myDeals, myDeliverables, myActivity,
       submitDealReport, addDeal,
-      markDeliverableComplete,
+      markDeliverableComplete, updateDeliverable, addDeliverable, deleteDeliverable,
+      updateDealStatus, archiveDeal,
+      attachDocument, deleteDocument,
+      logActivity,
       conversations, sendMessage, replyMessage,
     }}>
       {children}

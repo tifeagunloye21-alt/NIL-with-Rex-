@@ -2,176 +2,154 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
-const ROLES = [
-    { value: 'athlete', icon: '🏅', label: 'Athlete', desc: 'Track your NIL deals & earnings' },
-    { value: 'agent', icon: '🤝', label: 'Agent', desc: 'Manage your athletes & deals' },
-    { value: 'school', icon: '🏫', label: 'School', desc: 'Monitor compliance & reports' },
-];
-
 export default function SignupPage() {
     const navigate = useNavigate();
     const { signup } = useAppContext();
+    const [role, setRole] = useState('athlete');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('athlete');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [school, setSchool] = useState('');
+    const [sport, setSport] = useState('');
+    const [agency, setAgency] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleSignup = async (e) => {
         e.preventDefault();
         setError('');
+        if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
         setLoading(true);
         try {
-            const userRole = await signup({ name, email, password, role });
-            if (userRole === 'agent') navigate('/for-agents');
-            else if (userRole === 'school') navigate('/school-dashboard');
+            const r = await signup({ name, email, password, role });
+            if (r === 'agent') navigate('/for-agents');
             else navigate('/athlete-dashboard');
         } catch (err) {
-            setError(err.message || 'Something went wrong. Please try again.');
+            setError(err.message || 'Failed to create account.');
         } finally {
             setLoading(false);
         }
     };
 
-    const pwStrength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
-    const pwColors = ['#e5e7eb', '#ef4444', '#f59e0b', '#22c55e'];
-    const pwLabels = ['', 'Weak', 'Fair', 'Strong'];
+    const inp = {
+        width: '100%', padding: '0.82rem 1rem', borderRadius: '10px',
+        border: '1.5px solid #e5e7eb', fontSize: '0.93rem', outline: 'none',
+        boxSizing: 'border-box', background: 'white', color: '#111827',
+        transition: 'border-color 0.15s, box-shadow 0.15s',
+    };
+    const focusInp = (e) => Object.assign(e.target.style, { borderColor: '#0052FF', boxShadow: '0 0 0 3px rgba(0,82,255,0.1)' });
+    const blurInp  = (e) => Object.assign(e.target.style, { borderColor: '#e5e7eb', boxShadow: 'none' });
+    const lbl = { display: 'block', fontSize: '0.83rem', fontWeight: 600, color: '#374151', marginBottom: '0.45rem' };
 
     return (
-        <div className="nil-auth-split">
-            {/* Left Brand Panel */}
-            <div className="nil-auth-brand-panel">
-                <div className="nil-auth-brand-inner">
-                    <div className="nil-auth-brand-logo">
-                        <span className="nil-auth-logo-mark">FD</span>
-                        <span className="nil-auth-logo-word">FrontDoor</span>
-                    </div>
-                    <h2 className="nil-auth-brand-headline">Your first step<br />into NIL.</h2>
-                    <p className="nil-auth-brand-sub">Join hundreds of athletes, agents and schools using FrontDoor to manage NIL with confidence.</p>
-                    <div className="nil-auth-features">
-                        {[
-                            { icon: '⚡', text: 'Set up in under 2 minutes' },
-                            { icon: '🔒', text: 'Bank-grade security for your data' },
-                            { icon: '🎓', text: 'Built for student-athletes first' },
-                        ].map(f => (
-                            <div key={f.text} className="nil-auth-feature-row">
-                                <span className="nil-auth-feature-icon">{f.icon}</span>
-                                <span>{f.text}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="nil-auth-deco nil-auth-deco--1" />
-                <div className="nil-auth-deco nil-auth-deco--2" />
-                <div className="nil-auth-deco nil-auth-deco--3" />
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', padding: '3rem 1.5rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
+
+            {/* Logo — just plain text like the reference */}
+            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px', marginBottom: '2.5rem' }}>
+                FrontDoor
             </div>
 
-            {/* Right Form Panel */}
-            <div className="nil-auth-form-panel">
-                <div className="nil-auth-form-card">
-                    <div className="nil-auth-form-header">
-                        <h1 className="nil-auth-form-title">Create account</h1>
-                        <p className="nil-auth-form-subtitle">Start your NIL journey with FrontDoor</p>
-                    </div>
+            <div style={{ width: '100%', maxWidth: '480px', background: 'white', borderRadius: '20px', padding: '2.75rem 2.5rem', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', border: '1px solid #f0f0f0' }}>
 
-                    <form className="nil-auth-form-body" onSubmit={handleSignup}>
-                        {error && (
-                            <div className="nil-auth-error">
-                                <span>⚠</span> {error}
-                            </div>
-                        )}
-
-                        <div className="nil-auth-field">
-                            <label className="nil-auth-label" htmlFor="signup-name">Full Name</label>
-                            <div className="nil-auth-input-wrap">
-                                <span className="nil-auth-input-icon">👤</span>
-                                <input
-                                    id="signup-name"
-                                    type="text"
-                                    placeholder="Your full name"
-                                    required
-                                    className="nil-auth-input nil-auth-input--icon"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="nil-auth-field">
-                            <label className="nil-auth-label" htmlFor="signup-email">Email address</label>
-                            <div className="nil-auth-input-wrap">
-                                <span className="nil-auth-input-icon">✉</span>
-                                <input
-                                    id="signup-email"
-                                    type="email"
-                                    placeholder="you@university.edu"
-                                    required
-                                    className="nil-auth-input nil-auth-input--icon"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="nil-auth-field">
-                            <label className="nil-auth-label" htmlFor="signup-password">Password</label>
-                            <div className="nil-auth-input-wrap">
-                                <span className="nil-auth-input-icon">🔒</span>
-                                <input
-                                    id="signup-password"
-                                    type="password"
-                                    placeholder="Min. 6 characters"
-                                    required
-                                    minLength={6}
-                                    className="nil-auth-input nil-auth-input--icon"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                            </div>
-                            {password.length > 0 && (
-                                <div className="nil-pw-strength">
-                                    <div className="nil-pw-bars">
-                                        {[1, 2, 3].map(i => (
-                                            <div key={i} className="nil-pw-bar"
-                                                style={{ background: i <= pwStrength ? pwColors[pwStrength] : '#e5e7eb' }} />
-                                        ))}
-                                    </div>
-                                    <span className="nil-pw-label" style={{ color: pwColors[pwStrength] }}>{pwLabels[pwStrength]}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="nil-auth-field">
-                            <label className="nil-auth-label">I am a…</label>
-                            <div className="nil-role-cards">
-                                {ROLES.map(r => (
-                                    <label key={r.value} className={`nil-role-card${role === r.value ? ' active' : ''}`}>
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            value={r.value}
-                                            checked={role === r.value}
-                                            onChange={() => setRole(r.value)}
-                                            style={{ display: 'none' }}
-                                        />
-                                        <span className="nil-role-card-icon">{r.icon}</span>
-                                        <span className="nil-role-card-label">{r.label}</span>
-                                        <span className="nil-role-card-desc">{r.desc}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        <button type="submit" className="nil-auth-submit" disabled={loading}>
-                            {loading ? 'Creating account…' : 'Create Account →'}
-                        </button>
-                    </form>
-
-                    <div className="nil-auth-form-footer">
-                        <p>Already have an account? <Link to="/login" className="nil-auth-link">Sign in</Link></p>
-                    </div>
+                <div style={{ marginBottom: '2rem' }}>
+                    <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#111827', margin: '0 0 0.4rem', letterSpacing: '-0.5px' }}>Create Your Account</h1>
+                    <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>Join the platform built for student-athletes and agents</p>
                 </div>
+
+                <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                    {error && (
+                        <div style={{ background: '#fef2f2', color: '#dc2626', padding: '0.7rem 1rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600, border: '1px solid #fecaca' }}>
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Role Selection */}
+                    <div>
+                        <label style={lbl}>I am a...</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                            {[
+                                { id: 'athlete', icon: '🏃', label: 'Athlete' },
+                                { id: 'agent',   icon: '💼', label: 'Agent'   },
+                            ].map(r => (
+                                <div
+                                    key={r.id}
+                                    onClick={() => setRole(r.id)}
+                                    style={{
+                                        border: `2px solid ${role === r.id ? '#0052FF' : '#e5e7eb'}`,
+                                        background: role === r.id ? '#eff6ff' : 'white',
+                                        borderRadius: '12px', padding: '1.25rem 1rem',
+                                        textAlign: 'center', cursor: 'pointer',
+                                        transition: 'all 0.15s',
+                                        boxShadow: role === r.id ? '0 2px 10px rgba(0,82,255,0.12)' : 'none',
+                                    }}
+                                >
+                                    <div style={{ fontSize: '1.6rem', marginBottom: '0.4rem' }}>{r.icon}</div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: role === r.id ? '#0052FF' : '#4b5563' }}>{r.label}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Full Name */}
+                    <div>
+                        <label style={lbl}>Full Name</label>
+                        <input type="text" required placeholder="Jordan Adams" value={name} onChange={e => setName(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                        <label style={lbl}>Email</label>
+                        <input type="email" required placeholder="you@university.edu" value={email} onChange={e => setEmail(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                    </div>
+
+                    {/* Password row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                        <div>
+                            <label style={lbl}>Password</label>
+                            <input type="password" required placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                        </div>
+                        <div>
+                            <label style={lbl}>Confirm Password</label>
+                            <input type="password" required placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                        </div>
+                    </div>
+
+                    {/* Role-specific fields */}
+                    {role === 'athlete' && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                            <div>
+                                <label style={lbl}>School / University</label>
+                                <input type="text" placeholder="University of Example" value={school} onChange={e => setSchool(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                            </div>
+                            <div>
+                                <label style={lbl}>Sport</label>
+                                <input type="text" placeholder="Football" value={sport} onChange={e => setSport(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                            </div>
+                        </div>
+                    )}
+
+                    {role === 'agent' && (
+                        <div>
+                            <label style={lbl}>Agency / Organization</label>
+                            <input type="text" required placeholder="Sports Agency LLC" value={agency} onChange={e => setAgency(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
+                        </div>
+                    )}
+
+                    <button
+                        type="submit" disabled={loading}
+                        style={{ width: '100%', background: '#0052FF', color: 'white', border: 'none', borderRadius: '10px', padding: '0.9rem', fontSize: '1rem', fontWeight: 700, marginTop: '0.5rem', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 14px rgba(0,82,255,0.28)', transition: 'background 0.15s' }}
+                        onMouseEnter={e => !loading && (e.target.style.background = '#0047e0')}
+                        onMouseLeave={e => !loading && (e.target.style.background = '#0052FF')}
+                    >
+                        {loading ? 'Creating Account...' : 'Create Account'}
+                    </button>
+                </form>
+
+                <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.9rem', color: '#6b7280' }}>
+                    Already have an account?{' '}
+                    <Link to="/login" style={{ color: '#0052FF', textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
+                </p>
             </div>
         </div>
     );

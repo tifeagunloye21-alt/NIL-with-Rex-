@@ -23,6 +23,7 @@ import AgentReportPage from './pages/AgentReportPage';
 import EducationPage from './pages/EducationPage';
 import CompliancePage from './pages/CompliancePage';
 import ProfilePage from './pages/ProfilePage';
+import DealDetailPage from './pages/DealDetailPage';
 
 function App() {
   const { currentUser } = useAppContext();
@@ -45,7 +46,7 @@ function App() {
   const publicRoutes = ['/resources', '/about', '/explore', '/get-started', '/for-agents', '/login', '/signup'];
   const isPublicRoute = publicRoutes.some(r => pathname.startsWith(r));
 
-  const dashboardRoutes = ['/athlete-dashboard', '/tracker', '/deliverables', '/report-deal', '/agent', '/education', '/compliance', '/profile'];
+  const dashboardRoutes = ['/athlete-dashboard', '/tracker', '/deliverables', '/deals', '/report-deal', '/agent', '/education', '/compliance', '/profile'];
   const isDashboardRoute = dashboardRoutes.some(r => pathname.startsWith(r));
 
   if (isPublicRoute) {
@@ -89,6 +90,7 @@ function App() {
           <Route path="/compliance" element={<ProtectedRoute><CompliancePage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/agent/report-deal" element={<ProtectedRoute><AgentReportPage /></ProtectedRoute>} />
+          <Route path="/deals/:dealId" element={<ProtectedRoute><DealDetailPage /></ProtectedRoute>} />
         </Route>
       </Routes>
     );
