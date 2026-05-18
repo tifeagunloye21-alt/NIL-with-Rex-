@@ -24,6 +24,7 @@ import EducationPage from './pages/EducationPage';
 import CompliancePage from './pages/CompliancePage';
 import ProfilePage from './pages/ProfilePage';
 import DealDetailPage from './pages/DealDetailPage';
+import AgentDashboard from './pages/AgentDashboard';
 
 function App() {
   const { currentUser } = useAppContext();
@@ -46,7 +47,12 @@ function App() {
   const publicRoutes = ['/resources', '/about', '/explore', '/get-started', '/for-agents', '/login', '/signup'];
   const isPublicRoute = publicRoutes.some(r => pathname.startsWith(r));
 
-  const dashboardRoutes = ['/athlete-dashboard', '/tracker', '/deliverables', '/deals', '/report-deal', '/agent', '/education', '/compliance', '/profile'];
+  const dashboardRoutes = [
+    '/athlete-dashboard', '/tracker', '/deliverables', '/deals', '/report-deal',
+    '/agent', '/agent-dashboard', '/agent-tracker', '/agent-deliverables',
+    '/agent-education', '/agent-compliance', '/agent-profile',
+    '/education', '/compliance', '/profile',
+  ];
   const isDashboardRoute = dashboardRoutes.some(r => pathname.startsWith(r));
 
   if (isPublicRoute) {
@@ -82,15 +88,24 @@ function App() {
     return (
       <Routes>
         <Route element={<DashboardLayout />}>
-          <Route path="/athlete-dashboard" element={<ProtectedRoute><AthleteDashboard /></ProtectedRoute>} />
-          <Route path="/tracker" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
-          <Route path="/deliverables" element={<ProtectedRoute><DeliverablesPage /></ProtectedRoute>} />
-          <Route path="/report-deal" element={<ProtectedRoute><ReportDealPage /></ProtectedRoute>} />
-          <Route path="/education" element={<ProtectedRoute><EducationPage /></ProtectedRoute>} />
-          <Route path="/compliance" element={<ProtectedRoute><CompliancePage /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/agent/report-deal" element={<ProtectedRoute><AgentReportPage /></ProtectedRoute>} />
-          <Route path="/deals/:dealId" element={<ProtectedRoute><DealDetailPage /></ProtectedRoute>} />
+          {/* ── Athlete routes ── */}
+          <Route path="/athlete-dashboard" element={<ProtectedRoute requiredRole="athlete"><AthleteDashboard /></ProtectedRoute>} />
+          <Route path="/tracker" element={<ProtectedRoute requiredRole="athlete"><TrackerPage /></ProtectedRoute>} />
+          <Route path="/deliverables" element={<ProtectedRoute requiredRole="athlete"><DeliverablesPage /></ProtectedRoute>} />
+          <Route path="/report-deal" element={<ProtectedRoute requiredRole="athlete"><ReportDealPage /></ProtectedRoute>} />
+          <Route path="/education" element={<ProtectedRoute requiredRole="athlete"><EducationPage /></ProtectedRoute>} />
+          <Route path="/compliance" element={<ProtectedRoute requiredRole="athlete"><CompliancePage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute requiredRole="athlete"><ProfilePage /></ProtectedRoute>} />
+          <Route path="/deals/:dealId" element={<ProtectedRoute requiredRole="athlete"><DealDetailPage /></ProtectedRoute>} />
+
+          {/* ── Agent routes ── */}
+          <Route path="/agent-dashboard" element={<ProtectedRoute requiredRole="agent"><AgentDashboard /></ProtectedRoute>} />
+          <Route path="/agent-tracker" element={<ProtectedRoute requiredRole="agent"><TrackerPage /></ProtectedRoute>} />
+          <Route path="/agent-deliverables" element={<ProtectedRoute requiredRole="agent"><DeliverablesPage /></ProtectedRoute>} />
+          <Route path="/agent-education" element={<ProtectedRoute requiredRole="agent"><EducationPage /></ProtectedRoute>} />
+          <Route path="/agent-compliance" element={<ProtectedRoute requiredRole="agent"><CompliancePage /></ProtectedRoute>} />
+          <Route path="/agent-profile" element={<ProtectedRoute requiredRole="agent"><ProfilePage /></ProtectedRoute>} />
+          <Route path="/agent/report-deal" element={<ProtectedRoute requiredRole="agent"><AgentReportPage /></ProtectedRoute>} />
         </Route>
       </Routes>
     );

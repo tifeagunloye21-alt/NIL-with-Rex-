@@ -16,7 +16,7 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const role = await login({ email, password });
-            if (role === 'agent') navigate('/for-agents');
+            if (role === 'agent') navigate('/agent-dashboard');
             else if (role === 'school') navigate('/school-dashboard');
             else navigate('/athlete-dashboard');
         } catch (err) {

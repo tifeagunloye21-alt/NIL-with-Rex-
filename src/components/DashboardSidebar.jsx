@@ -20,9 +20,13 @@ export default function DashboardSidebar() {
     ];
 
     const AGENT_NAV = [
-        { label: 'Overview', icon: Home, to: '/athlete-dashboard', section: 'MAIN' },
+        { label: 'Overview', icon: Home, to: '/agent-dashboard', section: 'MAIN' },
+        { label: 'Financial Tracker', icon: LineChart, to: '/agent-tracker', badge: '★', section: 'MAIN' },
         { label: 'Report a Deal', icon: Plus, to: '/agent/report-deal', section: 'MAIN' },
-        { label: 'Profile', icon: User, to: '/profile', section: 'ACCOUNT' },
+        { label: 'Deliverables', icon: FileCheck, to: '/agent-deliverables', section: 'MAIN' },
+        { label: 'Education', icon: GraduationCap, to: '/agent-education', section: 'MAIN' },
+        { label: 'Compliance', icon: ShieldCheck, to: '/agent-compliance', section: 'ACCOUNT' },
+        { label: 'Profile', icon: User, to: '/agent-profile', section: 'ACCOUNT' },
     ];
 
     const navItems = isAgent ? AGENT_NAV : ATHLETE_NAV;

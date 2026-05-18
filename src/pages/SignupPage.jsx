@@ -23,7 +23,7 @@ export default function SignupPage() {
         setLoading(true);
         try {
             const r = await signup({ name, email, password, role });
-            if (r === 'agent') navigate('/for-agents');
+            if (r === 'agent') navigate('/agent-dashboard');
             else navigate('/athlete-dashboard');
         } catch (err) {
             setError(err.message || 'Failed to create account.');
