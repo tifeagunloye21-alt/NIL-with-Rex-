@@ -186,19 +186,28 @@ export default function AIAssistant() {
                 }),
             });
 
-            if (!res.ok) throw new Error('API error');
+            // Server returned a response (even errors come back as 200 from our backend)
             const data = await res.json();
 
-            setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
-            if (data.action) handleAction(data.action);
+            if (data.content) {
+                setMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+                if (data.action) handleAction(data.action);
+            } else {
+                throw new Error('Empty response from server');
+            }
 
-            // If chat is closed, mark unread
             if (!isOpen || isMinimized) setHasUnread(true);
         } catch (err) {
+            // Only show "backend not running" for genuine network failures (fetch threw)
+            const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "Sorry, I'm having trouble connecting right now. Make sure the AI backend is running (`npm run server:ai`) and try again.",
+                content: isNetworkError
+                    ? "⚠️ Can't reach the AI backend. Make sure it's running in a separate terminal:\n\nnpm run server:ai"
+                    : "Something went wrong. Please try again.",
             }]);
+            console.error('[Doorway frontend error]', err.message);
+
         } finally {
             setLoading(false);
         }

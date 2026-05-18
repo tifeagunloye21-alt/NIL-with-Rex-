@@ -2,29 +2,37 @@
  * FrontDoor AI Assistant — Secure Backend Server
  * Runs on port 3001. Vite proxies /api/* here.
  * The ANTHROPIC_API_KEY is read from .env and NEVER sent to the browser.
- *
- * Supabase migration note: swap the in-memory context building here with
- * supabase.from('deals').select(...).eq('athleteId', userId) etc.
  */
 
 import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:5176'] }));
+
+// Allow any localhost port (covers 5173–5177+ during dev)
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
+}));
 app.use(express.json({ limit: '50kb' }));
 
 const PORT = process.env.API_PORT || 3001;
 
-// ── Anthropic client ──────────────────────────────────────────────────────────
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || '' });
+// ── Validate key ──────────────────────────────────────────────────────────────
+const PLACEHOLDER_KEYS = ['your_anthropic_api_key_here', '', 'sk-ant-REPLACE_ME'];
+const apiKey = process.env.ANTHROPIC_API_KEY || '';
+const isKeyConfigured = Boolean(apiKey && !PLACEHOLDER_KEYS.includes(apiKey.trim()));
+
+const anthropic = isKeyConfigured ? new Anthropic({ apiKey }) : null;
 
 // ── FrontDoor system prompt ───────────────────────────────────────────────────
 function buildSystemPrompt(userContext) {
@@ -79,13 +87,12 @@ STRICT GUARDRAILS — you must NEVER:
 - Provide legal, tax, financial, or compliance legal advice
 - Make compliance judgments (only help organize)
 - Replace agents or educational content
-- Speculate beyond the user's actual data
 
 When asked for restricted advice, respond:
 "I can help you organize and track this inside FrontDoor, but I can't provide legal, tax, financial, or NIL strategy advice. Please consult your agent, school compliance office, or a qualified professional."
 
 NAVIGATION GUIDE (when users ask where things are):
-- Report a deal → /report-deal
+- Report a deal → /report-deal (athlete) or /agent/report-deal (agent)
 - View deals → Dashboard → Deals tab
 - Deliverables → /deliverables or Dashboard → Deliverables tab
 - Financial Tracker → /tracker
@@ -93,18 +100,8 @@ NAVIGATION GUIDE (when users ask where things are):
 - Compliance → /compliance
 - Profile & Settings → /profile
 - Upload documents → Deal Detail page → Documents section
-- Deal details → Click "View Details" on any deal in the Deals tab
 
-ACTIONS YOU CAN GUIDE (tell user to do these, or return action JSON):
-- mark_deliverable_complete: {action: "mark_complete", deliverableId, name}
-- navigate: {action: "navigate", path}
-- open_report_deal: {action: "navigate", path: "/report-deal"}
-- view_deal: {action: "navigate", path: "/deals/DEAL_ID"}
-
-When you want to trigger an action, include it at the END of your message in this exact format:
-<action>{"type":"navigate","path":"/report-deal"}</action>
-
-TONE: Professional, concise, helpful. Use short paragraphs. No bullet-point overload. Feel like a smart assistant, not a chatbot.`;
+TONE: Professional, concise, helpful. Use short paragraphs. Feel like a smart assistant, not a chatbot.`;
 }
 
 // ── Chat endpoint ─────────────────────────────────────────────────────────────
@@ -116,10 +113,11 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'messages array required' });
         }
 
-        if (!process.env.ANTHROPIC_API_KEY) {
-            // Return a helpful message if key not set yet
+        // Key not configured — return a friendly in-chat message (200, not error)
+        if (!isKeyConfigured) {
+            console.warn('[Doorway] ANTHROPIC_API_KEY is missing or still a placeholder. Add your real key to .env');
             return res.json({
-                content: "⚠️ The AI assistant isn't configured yet. Add your ANTHROPIC_API_KEY to the .env file to enable Doorway.",
+                content: "⚠️ Doorway needs your Anthropic API key to respond.\n\nOpen the .env file and replace:\nANTHROPIC_API_KEY=your_anthropic_api_key_here\n\nwith your real key from console.anthropic.com, then restart with: npm run server:ai",
                 action: null,
             });
         }
@@ -135,27 +133,51 @@ app.post('/api/chat', async (req, res) => {
 
         const rawContent = response.content[0]?.text || '';
 
-        // Extract action tag if present
+        // Extract optional action tag
         const actionMatch = rawContent.match(/<action>([\s\S]*?)<\/action>/);
         let action = null;
         let content = rawContent.replace(/<action>[\s\S]*?<\/action>/g, '').trim();
-
         if (actionMatch) {
             try { action = JSON.parse(actionMatch[1]); } catch {}
         }
 
         res.json({ content, action });
+
     } catch (err) {
-        console.error('[Doorway API error]', err.message);
-        res.status(500).json({ error: 'Assistant unavailable. Please try again.' });
+        console.error('[Doorway API error]', {
+            status: err.status,
+            message: err.message,
+            type: err.error?.type,
+        });
+
+        // Map Anthropic error codes to human-readable messages
+        let userMessage = 'Doorway hit an unexpected error. Please try again.';
+        if (err.status === 401) {
+            userMessage = '⚠️ Invalid API key. Check ANTHROPIC_API_KEY in .env and restart the server.';
+        } else if (err.status === 429) {
+            userMessage = '⚠️ Rate limit reached — please wait a moment and try again.';
+        } else if (err.status === 529 || err.status === 503) {
+            userMessage = '⚠️ Claude is temporarily overloaded. Please try again in a few seconds.';
+        }
+
+        // Always return 200 so the frontend shows the message, not a crash
+        res.status(200).json({ content: userMessage, action: null });
     }
 });
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok', assistant: 'Doorway' }));
+app.get('/api/health', (_, res) => res.json({
+    status: 'ok',
+    assistant: 'Doorway',
+    keyConfigured: isKeyConfigured,
+}));
 
 app.listen(PORT, () => {
-    console.log(`✅ FrontDoor AI backend running on http://localhost:${PORT}`);
-    if (!process.env.ANTHROPIC_API_KEY) {
-        console.warn('⚠️  ANTHROPIC_API_KEY not set in .env — AI responses will be limited.');
+    console.log(`\n✅ FrontDoor AI backend running on http://localhost:${PORT}`);
+    if (!isKeyConfigured) {
+        console.warn('⚠️  ANTHROPIC_API_KEY is missing or still a placeholder.');
+        console.warn('   → Open .env and set: ANTHROPIC_API_KEY=sk-ant-...');
+        console.warn('   → Get your key at: https://console.anthropic.com\n');
+    } else {
+        console.log('🤖 Claude API key configured — Doorway is ready.\n');
     }
 });
