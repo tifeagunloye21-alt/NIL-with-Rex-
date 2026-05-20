@@ -1,7 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Shield, Lock, Eye, FileText, LogOut, Camera, Check, Save, ChevronRight } from 'lucide-react';
+import { User, Bell, Shield, Lock, Eye, FileText, LogOut, Camera, Check, Save, ChevronRight, Receipt } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+
+const ALL_STATES = [
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire',
+  'New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio',
+  'Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota',
+  'Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia',
+  'Wisconsin','Wyoming',
+];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function usePersistedState(key, defaultVal) {
@@ -56,6 +67,7 @@ const blurInp  = e => Object.assign(e.target.style, { borderColor: '#e5e7eb', ba
 
 const TABS = [
     { id: 'profile',      label: 'Profile',       icon: User },
+    { id: 'taxprofile',   label: 'Tax Profile',   icon: Receipt },
     { id: 'notifications',label: 'Notifications', icon: Bell },
     { id: 'security',     label: 'Security',      icon: Lock },
     { id: 'privacy',      label: 'Privacy',       icon: Eye },
@@ -94,6 +106,11 @@ export default function ProfilePage() {
     // ── Privacy state ──────────────────────────────────────────────────────
     const [privacy, setPrivacy] = usePersistedState(`fd_privacy_${uid}`, {
         profileVisibility: 'Public to Brands', agentDiscovery: true,
+    });
+
+    // ── Tax profile state ───────────────────────────────────────────────────
+    const [taxProfile, setTaxProfile] = usePersistedState(`fd_taxprofile_${uid}`, {
+        schoolState: '', homeState: '', nilActivityStates: [],
     });
 
     // ── Compliance prefs ───────────────────────────────────────────────────
@@ -212,7 +229,50 @@ export default function ProfilePage() {
                         </>
                     )}
 
-                    {/* ── B. Notifications ── */}
+                    {/* ── A2. Tax Profile ── */}
+                    {tab === 'taxprofile' && (
+                        <Section title="Tax Profile">
+                            <p style={{ margin: '-0.5rem 0 1.25rem', fontSize: '0.82rem', color: '#6b7280', lineHeight: 1.6 }}>
+                                This information personalizes your Tax Center with relevant state resources. FrontDoor does not provide tax advice — consult a qualified professional for guidance.
+                            </p>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>School State</label>
+                                    <select value={taxProfile.schoolState} onChange={e => setTaxProfile({ ...taxProfile, schoolState: e.target.value })} style={{ ...inp, cursor: 'pointer' }}>
+                                        <option value="">Select state...</option>
+                                        {ALL_STATES.map(s => <option key={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.4rem' }}>Home / Residency State</label>
+                                    <select value={taxProfile.homeState} onChange={e => setTaxProfile({ ...taxProfile, homeState: e.target.value })} style={{ ...inp, cursor: 'pointer' }}>
+                                        <option value="">Select state...</option>
+                                        {ALL_STATES.map(s => <option key={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: '0.6rem' }}>States Where NIL Activity Has Occurred</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {ALL_STATES.map(s => {
+                                        const active = (taxProfile.nilActivityStates || []).includes(s);
+                                        return (
+                                            <button key={s} onClick={() => {
+                                                const cur = taxProfile.nilActivityStates || [];
+                                                setTaxProfile({ ...taxProfile, nilActivityStates: active ? cur.filter(x => x !== s) : [...cur, s] });
+                                            }} style={{ padding: '0.28rem 0.7rem', borderRadius: '99px', border: `1.5px solid ${active ? '#0052FF' : '#e5e7eb'}`, background: active ? '#eff6ff' : 'white', color: active ? '#0052FF' : '#6b7280', fontSize: '0.75rem', fontWeight: active ? 700 : 500, cursor: 'pointer', transition: 'all 0.12s' }}>
+                                                {s}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <button onClick={() => showSaved('Tax Profile')} style={{ background: '#0052FF', color: 'white', border: 'none', borderRadius: '10px', padding: '0.7rem 1.6rem', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', boxShadow: '0 4px 12px rgba(0,82,255,0.25)' }}>
+                                <Save size={15} /> Save Tax Profile
+                            </button>
+                        </Section>
+                    )}
+
                     {tab === 'notifications' && (
                         <Section title="Notification Preferences">
                             {[

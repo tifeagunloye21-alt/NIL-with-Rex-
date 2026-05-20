@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
+const ALL_STATES = [
+  'Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut',
+  'Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa',
+  'Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan',
+  'Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire',
+  'New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio',
+  'Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota',
+  'Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia',
+  'Wisconsin','Wyoming',
+];
+
 export default function SignupPage() {
     const navigate = useNavigate();
     const { signup } = useAppContext();
@@ -12,6 +23,8 @@ export default function SignupPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [school, setSchool] = useState('');
     const [sport, setSport] = useState('');
+    const [schoolState, setSchoolState] = useState('');
+    const [homeState, setHomeState] = useState('');
     const [agency, setAgency] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -23,8 +36,17 @@ export default function SignupPage() {
         setLoading(true);
         try {
             const r = await signup({ name, email, password, role });
-            if (r === 'agent') navigate('/agent-dashboard');
-            else navigate('/athlete-dashboard');
+            // Pre-save tax profile so Tax Center is personalized immediately
+            if (r === 'agent') {
+                navigate('/agent-dashboard');
+            } else {
+                const stored = JSON.parse(localStorage.getItem('fd_offline_users') || '{}');
+                const uid = stored[email]?.id;
+                if (uid && (schoolState || homeState)) {
+                    localStorage.setItem(`fd_taxprofile_${uid}`, JSON.stringify({ schoolState, homeState, nilActivityStates: [] }));
+                }
+                navigate('/athlete-dashboard');
+            }
         } catch (err) {
             setError(err.message || 'Failed to create account.');
         } finally {
@@ -117,6 +139,7 @@ export default function SignupPage() {
 
                     {/* Role-specific fields */}
                     {role === 'athlete' && (
+                        <>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
                             <div>
                                 <label style={lbl}>School / University</label>
@@ -127,6 +150,23 @@ export default function SignupPage() {
                                 <input type="text" placeholder="Football" value={sport} onChange={e => setSport(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
                             </div>
                         </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                            <div>
+                                <label style={lbl}>School State <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
+                                <select value={schoolState} onChange={e => setSchoolState(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                                    <option value="">Select state...</option>
+                                    {ALL_STATES.map(s => <option key={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={lbl}>Home / Residency State <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
+                                <select value={homeState} onChange={e => setHomeState(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                                    <option value="">Select state...</option>
+                                    {ALL_STATES.map(s => <option key={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        </>
                     )}
 
                     {role === 'agent' && (

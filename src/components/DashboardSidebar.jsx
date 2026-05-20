@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, LineChart, FileCheck, GraduationCap, ShieldCheck, User, LogOut, Plus, Briefcase } from 'lucide-react';
+import { Home, LineChart, FileCheck, GraduationCap, ShieldCheck, User, LogOut, Plus, Briefcase, Receipt } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 export default function DashboardSidebar() {
@@ -15,6 +15,7 @@ export default function DashboardSidebar() {
         { label: 'Deals', icon: Briefcase, to: '/report-deal', section: 'MAIN' },
         { label: 'Deliverables', icon: FileCheck, to: '/deliverables', section: 'MAIN' },
         { label: 'Education', icon: GraduationCap, to: '/education', section: 'MAIN' },
+        { label: 'Tax Center', icon: Receipt, to: '/tax-center', badge: 'NEW', section: 'MAIN' },
         { label: 'Compliance', icon: ShieldCheck, to: '/compliance', section: 'ACCOUNT' },
         { label: 'Profile', icon: User, to: '/profile', section: 'ACCOUNT' },
     ];

@@ -24,6 +24,7 @@ import EducationPage from './pages/EducationPage';
 import CompliancePage from './pages/CompliancePage';
 import ProfilePage from './pages/ProfilePage';
 import DealDetailPage from './pages/DealDetailPage';
+import TaxCenterPage from './pages/TaxCenterPage';
 import AgentDashboard from './pages/AgentDashboard';
 
 function App() {
@@ -51,7 +52,7 @@ function App() {
     '/athlete-dashboard', '/tracker', '/deliverables', '/deals', '/report-deal',
     '/agent', '/agent-dashboard', '/agent-tracker', '/agent-deliverables',
     '/agent-education', '/agent-compliance', '/agent-profile',
-    '/education', '/compliance', '/profile',
+    '/education', '/compliance', '/profile', '/tax-center',
   ];
   const isDashboardRoute = dashboardRoutes.some(r => pathname.startsWith(r));
 
@@ -97,6 +98,7 @@ function App() {
           <Route path="/compliance" element={<ProtectedRoute requiredRole="athlete"><CompliancePage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute requiredRole="athlete"><ProfilePage /></ProtectedRoute>} />
           <Route path="/deals/:dealId" element={<ProtectedRoute requiredRole="athlete"><DealDetailPage /></ProtectedRoute>} />
+          <Route path="/tax-center" element={<ProtectedRoute requiredRole="athlete"><TaxCenterPage /></ProtectedRoute>} />
 
           {/* ── Agent routes ── */}
           <Route path="/agent-dashboard" element={<ProtectedRoute requiredRole="agent"><AgentDashboard /></ProtectedRoute>} />
