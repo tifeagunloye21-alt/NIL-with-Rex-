@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Receipt, AlertCircle, Download, ChevronDown, Search, MapPin, CheckCircle, Clock, ExternalLink } from 'lucide-react';
+import { Receipt, AlertCircle, Download, ChevronDown, Search, MapPin, CheckCircle, Clock, ExternalLink, Crown } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import ProNilOrganizer from './ProNilOrganizerPage';
 
 // ── All 50 states ─────────────────────────────────────────────────────────────
 const ALL_STATES = [
@@ -80,6 +81,7 @@ function StateCard({ state }) {
 export default function TaxCenterPage() {
   const { currentUser } = useAppContext();
   const uid = currentUser?.id || 'anon';
+  const [mainTab, setMainTab] = useState('resources');
 
   const [taxProfile, setTaxProfile] = usePersistedState(`fd_taxprofile_${uid}`, {
     schoolState: '', homeState: '', nilActivityStates: [], school: '', sport: '',
@@ -115,7 +117,7 @@ export default function TaxCenterPage() {
     <div style={{ padding: '2.25rem 2.5rem', background: '#f8fafc', minHeight: '100vh', fontFamily: "'Inter', system-ui, sans-serif", maxWidth: '960px' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: '1.75rem' }}>
+      <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg, #0033cc, #0052FF)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Receipt size={20} color="white" />
@@ -125,7 +127,23 @@ export default function TaxCenterPage() {
         <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>Stay organized and access NIL tax resources personalized to your states.</p>
       </div>
 
-      {/* Disclaimer */}
+      {/* Main Tab Switcher */}
+      <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '1.75rem', background: '#f1f5f9', borderRadius: '14px', padding: '0.3rem' }}>
+        <button onClick={() => setMainTab('resources')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem', borderRadius: '10px', border: 'none', background: mainTab === 'resources' ? 'white' : 'transparent', color: mainTab === 'resources' ? '#111827' : '#6b7280', fontWeight: mainTab === 'resources' ? 700 : 500, fontSize: '0.875rem', cursor: 'pointer', boxShadow: mainTab === 'resources' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
+          <Receipt size={15} /> Tax Resources
+        </button>
+        <button onClick={() => setMainTab('pro')} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.7rem', borderRadius: '10px', border: 'none', background: mainTab === 'pro' ? 'white' : 'transparent', color: mainTab === 'pro' ? '#d97706' : '#6b7280', fontWeight: mainTab === 'pro' ? 700 : 500, fontSize: '0.875rem', cursor: 'pointer', boxShadow: mainTab === 'pro' ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all 0.15s' }}>
+          <Crown size={15} /> PRO: NIL Organizer
+        </button>
+      </div>
+
+      {/* PRO Tab */}
+      {mainTab === 'pro' && <ProNilOrganizer />}
+
+      {/* Resources Tab */}
+      {mainTab === 'resources' && (
+        <>
+
       <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1.75rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
         <AlertCircle size={18} color="#d97706" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
         <p style={{ margin: 0, fontSize: '0.8rem', color: '#92400e', lineHeight: 1.6 }}>
@@ -301,10 +319,14 @@ export default function TaxCenterPage() {
         )}
       </div>
 
-      {/* Bottom disclaimer */}
-      <div style={{ background: '#f1f5f9', borderRadius: '14px', padding: '1.25rem 1.5rem', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.7, textAlign: 'center' }}>
-        <strong>Disclaimer:</strong> FrontDoor is an organizational tool, not a tax service. All resources, dates, and information provided here are for general educational purposes only. Tax laws vary by state and individual situation. Always consult a licensed CPA, tax attorney, or your school's compliance office before making tax decisions.
-      </div>
+        {/* Bottom disclaimer */}
+        <div style={{ background: '#f1f5f9', borderRadius: '14px', padding: '1.25rem 1.5rem', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.7, textAlign: 'center' }}>
+          <strong>Disclaimer:</strong> FrontDoor is an organizational tool, not a tax service. All resources, dates, and information provided here are for general educational purposes only. Tax laws vary by state and individual situation. Always consult a licensed CPA, tax attorney, or your school's compliance office before making tax decisions.
+        </div>
+
+        </> 
+      )}
+
     </div>
   );
 }

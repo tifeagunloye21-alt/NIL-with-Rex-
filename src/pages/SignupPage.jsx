@@ -150,7 +150,7 @@ export default function SignupPage() {
                                 <input type="text" placeholder="Football" value={sport} onChange={e => setSport(e.target.value)} style={inp} onFocus={focusInp} onBlur={blurInp} />
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem', alignItems: 'end' }}>
                             <div>
                                 <label style={lbl}>School State <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
                                 <select value={schoolState} onChange={e => setSchoolState(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
@@ -159,13 +159,14 @@ export default function SignupPage() {
                                 </select>
                             </div>
                             <div>
-                                <label style={lbl}>Home / Residency State <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
+                                <label style={lbl}>Home State <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span></label>
                                 <select value={homeState} onChange={e => setHomeState(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
                                     <option value="">Select state...</option>
                                     {ALL_STATES.map(s => <option key={s}>{s}</option>)}
                                 </select>
                             </div>
                         </div>
+
                         </>
                     )}
 
