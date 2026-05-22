@@ -1,19 +1,19 @@
 /**
- * FrontDoor AI Assistant — Secure Backend Server
+ * FrontDoor AI Assistant — Secure Backend Server (OpenAI)
  * Runs on port 3001. Vite proxies /api/* here.
- * The ANTHROPIC_API_KEY is read from .env and NEVER sent to the browser.
+ * The OPENAI_API_KEY is read from .env and NEVER sent to the browser.
  */
 
 import express from 'express';
 import cors from 'cors';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = express();
 
-// Allow any localhost port (covers 5173–5177+ during dev)
+// Allow any localhost port (covers 5173–5179+ during dev)
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
@@ -28,11 +28,11 @@ app.use(express.json({ limit: '50kb' }));
 const PORT = process.env.API_PORT || 3001;
 
 // ── Validate key ──────────────────────────────────────────────────────────────
-const PLACEHOLDER_KEYS = ['your_anthropic_api_key_here', '', 'sk-ant-REPLACE_ME'];
-const apiKey = process.env.ANTHROPIC_API_KEY || '';
-const isKeyConfigured = Boolean(apiKey && !PLACEHOLDER_KEYS.includes(apiKey.trim()));
+const PLACEHOLDER_KEYS = ['your_openai_api_key_here', '', 'sk-proj-REPLACE_ME'];
+const apiKey = process.env.OPENAI_API_KEY || '';
+const isKeyConfigured = Boolean(apiKey && !PLACEHOLDER_KEYS.includes(apiKey.trim()) && apiKey.startsWith('sk-'));
 
-const anthropic = isKeyConfigured ? new Anthropic({ apiKey }) : null;
+const openai = isKeyConfigured ? new OpenAI({ apiKey }) : null;
 
 // ── FrontDoor system prompt ───────────────────────────────────────────────────
 function buildSystemPrompt(userContext) {
@@ -99,6 +99,7 @@ NAVIGATION GUIDE (when users ask where things are):
 - Education Hub → /education
 - Compliance → /compliance
 - Profile & Settings → /profile
+- Tax Center → /tax-center
 - Upload documents → Deal Detail page → Documents section
 
 TONE: Professional, concise, helpful. Use short paragraphs. Feel like a smart assistant, not a chatbot.`;
@@ -113,25 +114,27 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'messages array required' });
         }
 
-        // Key not configured — return a friendly in-chat message (200, not error)
+        // Key not configured — return a friendly in-chat message
         if (!isKeyConfigured) {
-            console.warn('[Doorway] ANTHROPIC_API_KEY is missing or still a placeholder. Add your real key to .env');
+            console.warn('[Doorway] OPENAI_API_KEY is missing or still a placeholder.');
             return res.json({
-                content: "⚠️ Doorway needs your Anthropic API key to respond.\n\nOpen the .env file and replace:\nANTHROPIC_API_KEY=your_anthropic_api_key_here\n\nwith your real key from console.anthropic.com, then restart with: npm run server:ai",
+                content: "⚠️ Doorway needs your OpenAI API key to respond.\n\nOpen the .env file and set:\nOPENAI_API_KEY=sk-proj-...\n\nGet your key at platform.openai.com/api-keys, then restart with: npm run server:ai",
                 action: null,
             });
         }
 
         const systemPrompt = buildSystemPrompt(userContext);
 
-        const response = await anthropic.messages.create({
-            model: 'claude-opus-4-5',
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
             max_tokens: 1024,
-            system: systemPrompt,
-            messages: messages.map(m => ({ role: m.role, content: m.content })),
+            messages: [
+                { role: 'system', content: systemPrompt },
+                ...messages.map(m => ({ role: m.role, content: m.content })),
+            ],
         });
 
-        const rawContent = response.content[0]?.text || '';
+        const rawContent = response.choices[0]?.message?.content || '';
 
         // Extract optional action tag
         const actionMatch = rawContent.match(/<action>([\s\S]*?)<\/action>/);
@@ -147,20 +150,18 @@ app.post('/api/chat', async (req, res) => {
         console.error('[Doorway API error]', {
             status: err.status,
             message: err.message,
-            type: err.error?.type,
+            code: err.code,
         });
 
-        // Map Anthropic error codes to human-readable messages
         let userMessage = 'Doorway hit an unexpected error. Please try again.';
         if (err.status === 401) {
-            userMessage = '⚠️ Invalid API key. Check ANTHROPIC_API_KEY in .env and restart the server.';
+            userMessage = '⚠️ Invalid API key. Check OPENAI_API_KEY in .env and restart the server.';
         } else if (err.status === 429) {
             userMessage = '⚠️ Rate limit reached — please wait a moment and try again.';
-        } else if (err.status === 529 || err.status === 503) {
-            userMessage = '⚠️ Claude is temporarily overloaded. Please try again in a few seconds.';
+        } else if (err.status === 503 || err.status === 529) {
+            userMessage = '⚠️ OpenAI is temporarily overloaded. Please try again in a few seconds.';
         }
 
-        // Always return 200 so the frontend shows the message, not a crash
         res.status(200).json({ content: userMessage, action: null });
     }
 });
@@ -168,16 +169,17 @@ app.post('/api/chat', async (req, res) => {
 app.get('/api/health', (_, res) => res.json({
     status: 'ok',
     assistant: 'Doorway',
+    model: 'gpt-4o-mini',
     keyConfigured: isKeyConfigured,
 }));
 
 app.listen(PORT, () => {
     console.log(`\n✅ FrontDoor AI backend running on http://localhost:${PORT}`);
     if (!isKeyConfigured) {
-        console.warn('⚠️  ANTHROPIC_API_KEY is missing or still a placeholder.');
-        console.warn('   → Open .env and set: ANTHROPIC_API_KEY=sk-ant-...');
-        console.warn('   → Get your key at: https://console.anthropic.com\n');
+        console.warn('⚠️  OPENAI_API_KEY is missing or still a placeholder.');
+        console.warn('   → Open .env and set: OPENAI_API_KEY=sk-proj-...');
+        console.warn('   → Get your key at: https://platform.openai.com/api-keys\n');
     } else {
-        console.log('🤖 Claude API key configured — Doorway is ready.\n');
+        console.log('🤖 OpenAI key configured — Doorway is ready (gpt-4o-mini)\n');
     }
 });
